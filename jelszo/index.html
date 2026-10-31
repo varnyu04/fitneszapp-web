@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>FitneszApp — Új jelszó</title>
+  <style>
+    :root {
+      --bg: #08090B;
+      --surface: #15171B;
+      --text: #F2F0EA;
+      --muted: #A8ADB8;
+      --accent: #3DDBC6;
+      --on-accent: #04211D;
+      --border: rgba(242, 240, 234, 0.12);
+      --danger: #FF7A5C;
+      --graphite: #2A2F38;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    main {
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      width: 100%;
+      max-width: 28rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px 24px;
+    }
+    .brand {
+      color: var(--accent);
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin: 0 0 16px;
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: 1.5rem;
+      line-height: 1.25;
+      font-weight: 700;
+    }
+    h1.is-error { color: var(--danger); }
+    p {
+      margin: 0 0 16px;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.5;
+    }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin: 0 0 6px;
+    }
+    input {
+      width: 100%;
+      margin: 0 0 14px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--graphite);
+      color: var(--text);
+      font-size: 1rem;
+    }
+    input:focus {
+      outline: 2px solid rgba(61, 219, 198, 0.45);
+      border-color: var(--accent);
+    }
+    .helper {
+      margin: -8px 0 14px;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    button {
+      width: 100%;
+      margin-top: 8px;
+      padding: 14px 16px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--accent);
+      color: var(--on-accent);
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button:disabled {
+      opacity: 0.55;
+      cursor: default;
+    }
+    .error {
+      color: var(--danger);
+      font-size: 0.92rem;
+      margin: 0 0 12px;
+    }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="card">
+      <p class="brand">FitneszApp</p>
+      <h1 id="title">Új jelszó</h1>
+      <p id="message">Add meg az új jelszavadat. Legalább 8 karakter, betű és szám.</p>
+      <form id="form" class="hidden" autocomplete="off">
+        <label for="password">Új jelszó</label>
+        <input id="password" name="password" type="password" autocomplete="new-password" required />
+        <p class="helper">Legalább 8 karakter, betű és szám</p>
+        <label for="confirm">Új jelszó újra</label>
+        <input id="confirm" name="confirm" type="password" autocomplete="new-password" required />
+        <p id="error" class="error hidden" role="alert"></p>
+        <button id="submit" type="submit">Jelszó mentése</button>
+      </form>
+    </div>
+  </main>
+  <script>
+    (function () {
+      var PROD = {
+        url: "https://nivkzxnatsmwythhhmgm.supabase.co",
+        key: "sb_publishable_sPYa1ZOADLqC4NOYsRxxvw_7l0HLnHb"
+      };
+      var STAGING = {
+        url: "https://ogabeptoaocwmsqpydlk.supabase.co",
+        key: "sb_publishable_bPQQm6HJrm4PN4ht0Olqqg_VI6Mh9lJ"
+      };
+
+      function passwordClientError(password) {
+        if (password.length < 8) return "A jelszónak legalább 8 karakternek kell lennie.";
+        if (!/[A-Za-zÁÉÍÓÖŐÚÜŰáéíóöőúüű]/.test(password) || !/\d/.test(password)) {
+          return "A jelszónak tartalmaznia kell betűt és számot.";
+        }
+        return null;
+      }
+
+      function showErrorPage() {
+        document.getElementById("title").textContent = "A link lejárt vagy már felhasználták";
+        document.getElementById("title").classList.add("is-error");
+        document.getElementById("message").textContent =
+          "A link lejárt vagy már felhasználták. Kérj újat az appban.";
+        document.getElementById("form").classList.add("hidden");
+      }
+
+      function showSuccess() {
+        document.getElementById("title").textContent = "Kész!";
+        document.getElementById("title").classList.remove("is-error");
+        document.getElementById("message").textContent =
+          "Térj vissza a FitneszApp-ba, és lépj be az új jelszóval.";
+        document.getElementById("form").classList.add("hidden");
+      }
+
+      function clearHash() {
+        if (window.location.hash) {
+          history.replaceState(null, "", window.location.pathname + window.location.search);
+        }
+      }
+
+      var query = new URLSearchParams(window.location.search || "");
+      var useStaging = query.get("env") === "staging";
+      var cfg = useStaging ? STAGING : PROD;
+      var hashRaw = (window.location.hash || "").replace(/^#/, "");
+      var hash = new URLSearchParams(hashRaw);
+      var accessToken = hash.get("access_token");
+      var type = hash.get("type");
+      var hasErr = query.has("error") || query.has("error_description") ||
+        hash.has("error") || hash.has("error_description");
+
+      clearHash();
+
+      if (hasErr || !accessToken || type !== "recovery") {
+        showErrorPage();
+        return;
+      }
+
+      document.getElementById("form").classList.remove("hidden");
+      var form = document.getElementById("form");
+      var errorEl = document.getElementById("error");
+      var submitBtn = document.getElementById("submit");
+
+      form.addEventListener("submit", function (ev) {
+        ev.preventDefault();
+        errorEl.classList.add("hidden");
+        var password = document.getElementById("password").value;
+        var confirm = document.getElementById("confirm").value;
+        if (password !== confirm) {
+          errorEl.textContent = "A két jelszó nem egyezik.";
+          errorEl.classList.remove("hidden");
+          return;
+        }
+        var pwErr = passwordClientError(password);
+        if (pwErr) {
+          errorEl.textContent = pwErr;
+          errorEl.classList.remove("hidden");
+          return;
+        }
+        submitBtn.disabled = true;
+        fetch(cfg.url.replace(/\/$/, "") + "/auth/v1/user", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: cfg.key,
+            Authorization: "Bearer " + accessToken
+          },
+          body: JSON.stringify({ password: password })
+        }).then(function (res) {
+          return res.json().then(function (body) {
+            return { ok: res.ok, body: body, status: res.status };
+          }).catch(function () {
+            return { ok: res.ok, body: null, status: res.status };
+          });
+        }).then(function (result) {
+          if (!result.ok) {
+            var msg = (result.body && (result.body.msg || result.body.error_description || result.body.error)) ||
+              ("Mentés sikertelen (HTTP " + result.status + ").");
+            errorEl.textContent = String(msg);
+            errorEl.classList.remove("hidden");
+            submitBtn.disabled = false;
+            return;
+          }
+          // Best-effort logout — invalidate refresh if present was already cleared from URL.
+          fetch(cfg.url.replace(/\/$/, "") + "/auth/v1/logout", {
+            method: "POST",
+            headers: {
+              apikey: cfg.key,
+              Authorization: "Bearer " + accessToken
+            }
+          }).catch(function () {});
+          showSuccess();
+        }).catch(function () {
+          errorEl.textContent = "Hálózati hiba. Próbáld újra.";
+          errorEl.classList.remove("hidden");
+          submitBtn.disabled = false;
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
